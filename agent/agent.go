@@ -276,6 +276,11 @@ func (a *Agent) CostTracker() *costtracker.Tracker {
 	return a.costTracker
 }
 
+// MCPClient returns the MCP client for managing MCP server connections.
+func (a *Agent) MCPClient() *mcp.Client {
+	return a.mcpClient
+}
+
 // envFirst returns the first non-empty value from the env map or os env,
 // trying CODEANY_ prefix first, then ANTHROPIC_ for compatibility.
 func envFirst(env map[string]string, keys ...string) string {

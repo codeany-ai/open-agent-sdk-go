@@ -146,21 +146,43 @@ func gitCmd(cwd string, args ...string) string {
 }
 
 func loadProjectMD(cwd string) string {
-	// Check for CODEANY.md in the project root
+	// Check for CODEANY.md and CLAUDE.md in the project root and config dirs
 	candidates := []string{
 		filepath.Join(cwd, "CODEANY.md"),
+		filepath.Join(cwd, "CLAUDE.md"),
 		filepath.Join(cwd, ".codeany", "CODEANY.md"),
+		filepath.Join(cwd, ".claude", "CLAUDE.md"),
 	}
 
 	// Also check home directory
 	if home, err := os.UserHomeDir(); err == nil {
 		candidates = append(candidates,
 			filepath.Join(home, ".codeany", "CODEANY.md"),
+			filepath.Join(home, ".claude", "CLAUDE.md"),
 		)
 	}
 
 	var parts []string
+	seen := make(map[string]bool)
 	for _, path := range candidates {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		content := strings.TrimSpace(string(data))
+		if content != "" && !seen[content] {
+			seen[content] = true
+			parts = append(parts, content)
+		}
+	}
+
+	// Load CLAUDE.local.md (personal, gitignored)
+	localPaths := []string{
+		filepath.Join(cwd, "CLAUDE.local.md"),
+		filepath.Join(cwd, ".claude", "CLAUDE.local.md"),
+		filepath.Join(cwd, "CODEANY.local.md"),
+	}
+	for _, path := range localPaths {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			continue
@@ -168,6 +190,31 @@ func loadProjectMD(cwd string) string {
 		content := strings.TrimSpace(string(data))
 		if content != "" {
 			parts = append(parts, content)
+		}
+	}
+
+	// Load rule files from .claude/rules/ and .codeany/rules/
+	ruleDirs := []string{
+		filepath.Join(cwd, ".claude", "rules"),
+		filepath.Join(cwd, ".codeany", "rules"),
+	}
+	for _, dir := range ruleDirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+				continue
+			}
+			data, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+			if err != nil {
+				continue
+			}
+			content := strings.TrimSpace(string(data))
+			if content != "" {
+				parts = append(parts, content)
+			}
 		}
 	}
 
