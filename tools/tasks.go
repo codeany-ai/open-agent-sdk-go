@@ -19,6 +19,7 @@ const (
 	TaskStatusInProgress TaskStatus = "in_progress"
 	TaskStatusCompleted  TaskStatus = "completed"
 	TaskStatusDeleted    TaskStatus = "deleted"
+	TaskStatusCancelled  TaskStatus = "cancelled"
 )
 
 // Task represents a tracked task.
@@ -33,6 +34,7 @@ type Task struct {
 	UpdatedAt   time.Time  `json:"updatedAt"`
 	BlockedBy   []string   `json:"blockedBy,omitempty"`
 	Blocks      []string   `json:"blocks,omitempty"`
+	Output      string     `json:"output,omitempty"`
 }
 
 // TaskStore manages tasks in memory.
@@ -232,6 +234,78 @@ func (t *TaskUpdateTool) Call(ctx context.Context, input map[string]interface{},
 		Content: []types.ContentBlock{{Type: types.ContentBlockText, Text: fmt.Sprintf("Task #%s updated (status: %s)", task.ID, task.Status)}},
 		Data:    task,
 	}, nil
+}
+
+func (s *TaskStore) SetOutput(id, output string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	t, ok := s.tasks[id]
+	if !ok {
+		return false
+	}
+	t.Output = output
+	t.UpdatedAt = time.Now()
+	return true
+}
+
+// TaskStopTool stops/cancels a running task.
+type TaskStopTool struct{ Store *TaskStore }
+
+func (t *TaskStopTool) Name() string        { return "TaskStop" }
+func (t *TaskStopTool) Description() string { return "Stop/cancel a running task." }
+func (t *TaskStopTool) InputSchema() types.ToolInputSchema {
+	return types.ToolInputSchema{
+		Type: "object",
+		Properties: map[string]interface{}{
+			"taskId": map[string]interface{}{"type": "string", "description": "Task ID to stop"},
+			"reason": map[string]interface{}{"type": "string", "description": "Reason for stopping"},
+		},
+		Required: []string{"taskId"},
+	}
+}
+func (t *TaskStopTool) IsConcurrencySafe(input map[string]interface{}) bool { return true }
+func (t *TaskStopTool) IsReadOnly(input map[string]interface{}) bool        { return false }
+func (t *TaskStopTool) Call(ctx context.Context, input map[string]interface{}, tCtx *types.ToolUseContext) (*types.ToolResult, error) {
+	id, _ := input["taskId"].(string)
+	reason, _ := input["reason"].(string)
+	task := t.Store.Get(id)
+	if task == nil {
+		return errorResult(fmt.Sprintf("Task %s not found", id)), nil
+	}
+	t.Store.Update(id, map[string]interface{}{"status": string(TaskStatusCancelled)})
+	if reason != "" {
+		t.Store.SetOutput(id, "Stopped: "+reason)
+	}
+	return textResult(fmt.Sprintf("Task stopped: %s", id)), nil
+}
+
+// TaskOutputTool gets the output/result of a task.
+type TaskOutputTool struct{ Store *TaskStore }
+
+func (t *TaskOutputTool) Name() string        { return "TaskOutput" }
+func (t *TaskOutputTool) Description() string { return "Get the output/result of a task." }
+func (t *TaskOutputTool) InputSchema() types.ToolInputSchema {
+	return types.ToolInputSchema{
+		Type: "object",
+		Properties: map[string]interface{}{
+			"taskId": map[string]interface{}{"type": "string", "description": "Task ID"},
+		},
+		Required: []string{"taskId"},
+	}
+}
+func (t *TaskOutputTool) IsConcurrencySafe(input map[string]interface{}) bool { return true }
+func (t *TaskOutputTool) IsReadOnly(input map[string]interface{}) bool        { return true }
+func (t *TaskOutputTool) Call(ctx context.Context, input map[string]interface{}, tCtx *types.ToolUseContext) (*types.ToolResult, error) {
+	id, _ := input["taskId"].(string)
+	task := t.Store.Get(id)
+	if task == nil {
+		return errorResult(fmt.Sprintf("Task %s not found", id)), nil
+	}
+	out := task.Output
+	if out == "" {
+		out = "(no output yet)"
+	}
+	return textResult(out), nil
 }
 
 // Ensure uuid is used
