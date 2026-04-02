@@ -158,6 +158,30 @@ func New(opts Options) *Agent {
 		sessionID:    sessionID,
 	}
 
+	// Register AgentTool with subagent spawner if definitions provided
+	if len(opts.Agents) > 0 {
+		defs := make(map[string]tools.SubagentDefinition, len(opts.Agents))
+		for name, def := range opts.Agents {
+			defs[name] = tools.SubagentDefinition{
+				Description:  def.Description,
+				Instructions: def.Instructions,
+				Tools:        def.Tools,
+				Model:        def.Model,
+			}
+		}
+		agentTool := tools.NewAgentTool(defs, a.spawnSubagent)
+		registry.Register(agentTool)
+	} else {
+		// Register with default agent types even if none configured
+		defaultDefs := map[string]tools.SubagentDefinition{
+			"general-purpose": {Description: "General-purpose agent for complex multi-step tasks"},
+			"explore":         {Description: "Fast agent for codebase exploration and search"},
+			"plan":            {Description: "Planning agent for designing implementation strategies"},
+		}
+		agentTool := tools.NewAgentTool(defaultDefs, a.spawnSubagent)
+		registry.Register(agentTool)
+	}
+
 	return a
 }
 
@@ -264,6 +288,61 @@ func (a *Agent) Clear() {
 // Close cleans up resources.
 func (a *Agent) Close() {
 	a.mcpClient.Close()
+}
+
+// spawnSubagent creates a child agent and runs a prompt synchronously.
+func (a *Agent) spawnSubagent(ctx context.Context, config tools.SubagentConfig) (string, error) {
+	model := config.Model
+	if model == "" {
+		model = a.opts.Model
+	}
+
+	childOpts := Options{
+		Model:              model,
+		APIKey:             a.opts.APIKey,
+		BaseURL:            a.opts.BaseURL,
+		CWD:                config.CWD,
+		MaxTurns:           30,
+		PermissionMode:     a.opts.PermissionMode,
+		SystemPrompt:       config.SystemPrompt,
+		CustomHeaders:      a.opts.CustomHeaders,
+		ProxyURL:           a.opts.ProxyURL,
+		TimeoutMs:          a.opts.TimeoutMs,
+	}
+
+	if childOpts.CWD == "" {
+		childOpts.CWD = a.opts.CWD
+	}
+
+	// Use parent's permission callback if available
+	if a.opts.CanUseTool != nil {
+		childOpts.CanUseTool = a.opts.CanUseTool
+	} else {
+		childOpts.PermissionMode = a.opts.PermissionMode
+	}
+
+	child := New(childOpts)
+	defer child.Close()
+
+	if err := child.Init(ctx); err != nil {
+		return "", fmt.Errorf("subagent init failed: %w", err)
+	}
+
+	result, err := child.Prompt(ctx, config.Prompt)
+	if err != nil {
+		return "", err
+	}
+
+	// Merge cost into parent tracker
+	if child.costTracker != nil && a.costTracker != nil {
+		childIn, childOut := child.costTracker.TotalTokens()
+		a.costTracker.AddUsage(model, &types.Usage{
+			InputTokens:  childIn,
+			OutputTokens: childOut,
+		})
+	}
+
+	return result.Text, nil
 }
 
 // SessionID returns the current session ID.
