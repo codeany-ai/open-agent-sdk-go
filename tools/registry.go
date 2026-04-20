@@ -84,6 +84,7 @@ func GetAllBaseTools() []types.Tool {
 		NewGrepTool(),
 		NewWebFetchTool(),
 		NewWebSearchTool(),
+		NewExaSearchTool(),
 		&TaskCreateTool{Store: store},
 		&TaskGetTool{Store: store},
 		&TaskListTool{Store: store},

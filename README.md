@@ -8,7 +8,7 @@ Also available in [TypeScript](https://github.com/codeany-ai/open-agent-sdk-type
 
 - **Agent Loop** — Streaming agentic loop with tool execution, multi-turn conversations, and cost tracking
 - **Multi-Provider** — Native support for both Anthropic and OpenAI-compatible APIs (auto-detected)
-- **32 Built-in Tools** — Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, Agent (subagents), SendMessage, Tasks, Todo, Config, Cron, PlanMode, Worktree, LSP, NotebookEdit, MCP Resources, and more
+- **Built-in Tools** — Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, ExaSearch, Agent (subagents), SendMessage, Tasks, Todo, Config, Cron, PlanMode, Worktree, LSP, NotebookEdit, MCP Resources, and more
 - **MCP Support** — Connect to MCP servers via stdio, HTTP, SSE transports, plus in-process SDK server
 - **Permission System** — Configurable tool approval with allow/deny rules, runtime mode changes, filesystem path validation, and directory allowlisting
 - **Hook System** — 11 hook events: PreToolUse, PostToolUse, PostToolUseFailure, UserPromptSubmit, Stop, SubagentStop, SubagentStart, PreCompact, Notification, PermissionRequest, PostSampling
@@ -383,6 +383,7 @@ Environment variables:
 | `CODEANY_CUSTOM_HEADERS`     | Custom headers (comma-separated `key:value`) |
 | `API_TIMEOUT_MS`             | API request timeout in ms                    |
 | `HTTPS_PROXY` / `HTTP_PROXY` | Proxy URL                                    |
+| `EXA_API_KEY`                | API key for the `ExaSearch` tool (optional)  |
 
 Also supports `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL` for compatibility.
 
