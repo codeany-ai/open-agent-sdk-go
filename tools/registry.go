@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"sort"
+
 	"github.com/codeany-ai/open-agent-sdk-go/types"
 )
 
@@ -26,21 +28,28 @@ func (r *Registry) Get(name string) types.Tool {
 	return r.tools[name]
 }
 
-// All returns all registered tools.
+// All returns all registered tools, sorted by name. The order is stable
+// across calls so callers (such as the agent request builder) produce a
+// deterministic tools list, which keeps the cacheable request prefix from
+// shifting between requests.
 func (r *Registry) All() []types.Tool {
 	result := make([]types.Tool, 0, len(r.tools))
 	for _, t := range r.tools {
 		result = append(result, t)
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Name() < result[j].Name()
+	})
 	return result
 }
 
-// Names returns all registered tool names.
+// Names returns all registered tool names, sorted for a stable order.
 func (r *Registry) Names() []string {
 	names := make([]string, 0, len(r.tools))
 	for name := range r.tools {
 		names = append(names, name)
 	}
+	sort.Strings(names)
 	return names
 }
 
