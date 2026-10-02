@@ -337,6 +337,7 @@ a := agent.New(agent.Options{
 | 09  | [Subagents](examples/09-subagents/)                       | Specialized subagent with restricted tools       |
 | 10  | [Permissions](examples/10-permissions/)                   | Read-only agent with AllowedTools                |
 | 11  | [Web Chat](examples/web/)                                 | Web-based chat UI with streaming                 |
+| 12  | [Parallel Search MCP](examples/12-parallel-search/)       | Opt-in HTTP MCP web research with source URLs     |
 
 Run any example:
 
@@ -368,7 +369,7 @@ open-agent-sdk-go/
 ├── checkpoint/         # File state checkpointing and rewind
 ├── sandbox/            # Sandbox access control (commands, files, network)
 ├── plugins/            # Local plugin loading and management
-└── examples/           # 11 runnable examples
+└── examples/           # 12 runnable examples
 ```
 
 ## Configuration
